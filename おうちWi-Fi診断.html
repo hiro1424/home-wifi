@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1720">
+<title>おうちWi-Fi診断</title>
+<style>
+/* VOICE: 落ち着いた家庭向けの点検手帳。IDEA: 機器の横に貼る「困ったときカード」。PICTURE: 大きな診断ボタンと結果ランプ。
+   COLOUR: 白地＋濃紺、状態色（緑・黄・赤）。TYPE: システム日本語フォント。LAYOUT: スマホ1列、下にタブ。 */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1720);--ink:light-dark(#111a24,#eef2f6);--mut:light-dark(#5b6675,#9aa6b4);
+--line:light-dark(#e2e6eb,#253140);--card:light-dark(#f3f6f9,#172230);--navy:light-dark(#0f2a4a,#9cc3ff);--ok:#1f9d55;--warn:#cc8b00;--bad:#d1343b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;overflow-x:clip;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+main{max-width:680px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px 24px}
+h1{font-size:24px;line-height:1.2;margin:4px 0 2px}h2{font-size:21px;margin:22px 0 10px}h3{font-size:17px;margin:18px 0 6px}
+p{margin:6px 0}.mut{color:var(--mut);font-size:14px}
+.view{display:none}.view.on{display:block}
+button,select,input{font:inherit;font-size:16px;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 14px}
+button{cursor:pointer;font-weight:600}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+.go{width:100%;min-height:64px;font-size:20px;background:var(--navy);color:var(--bg);border:0;margin:14px 0 6px}
+.go:disabled{opacity:.6}
+.lampbox{display:flex;gap:16px;align-items:center;background:var(--card);border-radius:18px;padding:18px;margin-top:12px}
+.lamp{flex:none;width:72px;height:72px;border-radius:50%;background:#8a94a3;box-shadow:inset 0 -6px 14px rgba(0,0,0,.25)}
+.lamp.ok{background:var(--ok)}.lamp.warn{background:var(--warn)}.lamp.bad{background:var(--bad)}
+@media(prefers-reduced-motion:no-preference){.lamp.busy{animation:p 1s ease-in-out infinite}@keyframes p{50%{opacity:.45}}}
+.big{font-size:22px;font-weight:700;line-height:1.3}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}.meter i{display:block;height:100%;background:var(--navy);width:0;transition:width .3s}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.nums div{background:var(--card);border-radius:12px;padding:8px 10px}.nums b{display:block;font-size:19px;white-space:nowrap;font-variant-numeric:tabular-nums}.nums span{font-size:13px;color:var(--mut)}
+.warnbox{background:color-mix(in srgb,var(--warn) 16%,var(--bg));border-radius:12px;padding:10px 14px;font-size:15px;margin:10px 0}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:12px 0}
+.q{font-weight:700;font-size:18px;margin-bottom:10px}
+.opts{display:grid;gap:8px}.opts button{text-align:left;padding:10px 14px;min-height:52px}
+.leaf h3{margin-top:0}
+.tag{display:inline-block;font-size:13px;font-weight:700;border-radius:6px;padding:1px 8px;color:#fff;white-space:nowrap}
+ol.steps{padding-left:1.4em;margin:8px 0}ol.steps li{margin:8px 0}
+.step-done{color:var(--mut);text-decoration:line-through}
+.timer{display:inline-flex;align-items:center;gap:8px;margin-top:4px}.timer button{min-height:38px;font-size:15px;padding:0 12px}.timer b{font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;vertical-align:top;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-size:13px;color:var(--mut)}td:first-child{white-space:nowrap;font-weight:700}
+.dev{font-size:13px;color:var(--mut)}
+details{border:1px solid var(--line);border-radius:14px;padding:2px 14px;margin:10px 0}summary{cursor:pointer;font-weight:700;padding:12px 0;font-size:17px}
+label.f{display:grid;gap:4px;font-size:14px;color:var(--mut);margin:10px 0}label.f input,label.f select{width:100%}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom);z-index:5}
+nav a{display:flex;align-items:center;justify-content:center;min-height:60px;text-decoration:none;color:var(--mut);font-size:13px;font-weight:600;text-align:center;line-height:1.25;padding:4px 2px}
+nav a.on{color:var(--navy);box-shadow:inset 0 3px 0 var(--navy)}
+.hist td{font-weight:400;white-space:normal}.hist td:first-child{white-space:nowrap}
+a{color:var(--navy)}
+</style>
+</head>
+<body>
+<main>
+
+<section class="view" id="diag">
+  <h1>おうちWi-Fi診断</h1>
+  <p class="mut" id="chain"></p>
+  <div class="warnbox" id="cellWarn">診断の前に、スマホの<b>モバイルデータ通信をオフ</b>にしてください。オンのままだと、Wi-Fiが悪くても携帯回線で通信してしまい「正常」と出ます。</div>
+  <button class="go" id="btnGo">今すぐ診断（約20秒）</button>
+  <div class="lampbox"><div class="lamp" id="lamp"></div><div><div class="big" id="res">まだ診断していません</div><div class="mut" id="resSub">不調を感じたら、その場所でボタンを押してください</div><div class="meter"><i id="bar"></i></div></div></div>
+  <div class="nums"><div><b id="nOk">–</b><span>成功率</span></div><div><b id="nMs">–</b><span>応答の中央値</span></div><div><b id="nMax">–</b><span>最大の応答</span></div></div>
+  <div id="flow"></div>
+  <p class="mut">速度も見たいとき：<a href="https://fast.com" rel="noopener">fast.com</a> ／ <a href="https://speed.cloudflare.com" rel="noopener">speed.cloudflare.com</a></p>
+</section>
+
+<section class="view" id="lamps">
+  <h1>ランプの見かた</h1>
+  <p class="mut">上から順に、回線に近い機器です。「正常」と違うランプがあれば、その機器か、それより上の機器に原因があります。</p>
+  <div id="lampList"></div>
+</section>
+
+<section class="view" id="restart">
+  <h1>再起動の手順</h1>
+  <p class="mut">軽いものから試します。手順をタップすると済みになり、タイマーで待ち時間を測れます。</p>
+  <div id="restartList"></div>
+</section>
+
+<section class="view" id="fix">
+  <h1>根本対策</h1>
+  <p class="mut">半月に1〜2回の不調をなくすために、落ち着いているときに一度だけやっておくことです。</p>
+  <div id="fixList"></div>
+</section>
+
+<section class="view" id="more">
+  <h1>記録と設定</h1>
+  <h2>診断の記録</h2>
+  <p class="mut">不調の日時が並ぶと、時間帯や曜日の傾向が見えてきます。</p>
+  <table class="hist"><thead><tr><th>日時</th><th>結果</th><th>メモ</th></tr></thead><tbody id="hist"></tbody></table>
+  <p class="mut" id="histEmpty">まだ記録はありません。</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><button id="btnCopy">記録をコピー</button><button id="btnClr">記録を消去</button></div>
+  <p class="mut" id="msg"></p>
+  <h2>機器の設定</h2>
+  <p class="mut">型番を変えると、各画面の表示名が変わります。手順の内容はこの3台に合わせて書いています。</p>
+  <label class="f">NTTのホームゲートウェイ（ONU一体型）<input id="s_hgw"></label>
+  <label class="f">Buffalo Wi-Fiルーター（親機）<input id="s_rt"></label>
+  <label class="f">Buffalo 中継機<input id="s_ext"></label>
+  <label class="f">プロバイダ名・問い合わせ先（メモ）<input id="s_isp" placeholder="例：〇〇光 サポート 0120-..."></label>
+  <label class="f">お使いのスマホ<select id="s_os"><option value="ios">iPhone</option><option value="android">Android</option></select></label>
+</section>
+
+</main>
+<nav>
+  <a href="#diag" data-v="diag">診断</a><a href="#lamps" data-v="lamps">ランプ</a><a href="#restart" data-v="restart">再起動</a><a href="#fix" data-v="fix">根本対策</a><a href="#more" data-v="more">記録・設定</a>
+</nav>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const KEY='homewifi.v1';
+const DEF={hgw:'PR-500MI',rt:'WSR-5400AX6',ext:'WEX-1800AX4',isp:'',os:'ios'};
+let st={cfg:{...DEF},hist:[]};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s){st.cfg={...DEF,...s.cfg};st.hist=s.hist||[]}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const C=()=>st.cfg;
+const esc=x=>String(x??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+/* ---------- 画面切り替え ---------- */
+const views=['diag','lamps','restart','fix','more'];
+function route(){const v=views.includes(location.hash.slice(1))?location.hash.slice(1):'diag';
+  for(const x of views)$(x).classList.toggle('on',x===v);
+  for(const a of document.querySelectorAll('nav a'))a.classList.toggle('on',a.dataset.v===v);window.scrollTo(0,0)}
+window.addEventListener('hashchange',route);
+
+/* ---------- 機器とランプ ---------- */
+const devices=()=>[
+ {n:C().hgw+'（ONU一体型）',role:'光回線の入口（ONU）と、ひかり電話などの機能が1台に入ったNTTの機器です。この家では、ルーター役はBuffaloの親機が担当しています。',lamps:[
+  ['#ルーター部（上段）'],
+
+  ['ルータ電源','緑点灯','消灯：電源が入っていない。'],
+  ['アラーム','消灯','赤点灯：装置の障害。再起動して、続くなら故障受付へ。'],
+  ['PPP','緑か橙で点灯','消灯：未接続。ただしIPv6（IPoE）で接続する契約では、消灯でも正常に使えることがあります。普段の状態を一度見ておくと安心です。'],
+  ['ACT','緑点灯か緑点滅','消灯：ルーター機能が使えない状態。再起動。'],
+  ['ひかり電話','緑点灯（使っている場合）','消灯：ひかり電話が使えない状態。契約していなければ消灯で問題ありません。'],
+  ['初期状態','消灯','橙点灯：初期化された状態で、接続設定が消えている。プロバイダの設定が必要なので問い合わせを。橙点滅：IPアドレスが重複している。'],
+  ['#光回線部・ONU（下段）'],
+
+  ['認証','緑点灯','消灯：準備中か故障。全機器を順番に再起動し、直らなければNTTの故障受付へ。'],
+  ['UNI','緑点灯（通信中は点滅）','消灯：内部のリンクが確立していない。再起動し、続くなら故障受付へ。'],
+  ['光回線','緑点灯','橙点灯：準備中か故障。橙点滅：ソフト更新中なので待つ。消灯：光が届いていない。光コードの抜け・強い折れ曲がりを確認し、直らなければ故障受付へ。'],
+  ['電源','緑点灯','消灯：電源が入っていない。コンセントを確認（電源タップを外して直接挿すのも有効）。']]},
+ {n:C().rt,role:'Wi-Fiの親機で、家のルーター役（Buffalo）。家の機器へのIPアドレスの割り当てやインターネット接続を担当しています。',lamps:[
+  ['POWER','緑点灯','緑点滅：起動中なので待つ。緑と橙の交互：ファームウェア更新中なので電源を切らずに待つ。橙点滅：エラー。全ランプ橙点灯：Buffaloのサポートへ。'],
+  ['WIRELESS','緑点灯','消灯：Wi-Fiが無効。橙点灯：設定の引っ越しに失敗。再起動。'],
+  ['INTERNET','緑点灯','消灯：インターネット未接続。PR-500MIのランプが正常なら、Buffaloを再起動（レベル2）。ただし設定によっては、つながっていても消灯のことがあります。'],
+  ['ROUTER','緑点灯（ルーターモード）','消灯：APモードか中継機モードになっている。スイッチが動いた・設定が変わった可能性があるので、背面のスイッチ位置を確認。']]},
+ {n:C().ext,role:'中継機（Buffalo）。親機の電波を受け取って遠くへ届けます。',lamps:[
+  ['POWER','緑点灯','橙など説明書と違う表示：中継機の再設定が必要なことがあります。'],
+  ['親機接続','緑点灯','緑点滅：親機との通信がやや悪い→親機に近いコンセントへ。緑の速い点滅：かなり悪い。橙点灯：親機と未接続→中継機の初期化・再設定。緑と橙の交互：メッシュの親機が見つからない→親機の近くへ移動、親機の5GHzチャンネルを36chなど低い値に。']]}
+];
+function renderLamps(){
+  $('chain').textContent=`構成：${C().hgw}（ONU一体型） → ${C().rt} → ${C().ext}`;
+  $('lampList').innerHTML=devices().map((d,i)=>`<div class="card"><div class="dev">${i+1}番目</div><h3 style="margin-top:2px">${esc(d.n)}</h3><p class="mut">${esc(d.role)}</p>
+  <table><thead><tr><th>ランプ</th><th>正常</th><th>違うとき</th></tr></thead><tbody>${d.lamps.map(l=>l[0][0]==='#'?`<tr><th colspan="3" style="padding-top:14px;color:var(--ink)">${l[0].slice(1)}</th></tr>`:`<tr><td>${l[0]}</td><td>${l[1]}</td><td>${l[2]}</td></tr>`).join('')}</tbody></table></div>`).join('');
+}
+
+/* ---------- 再起動 ---------- */
+const restarts=()=>({
+ L1:{t:'レベル1：中継機だけ',w:'中継機の近くだけ不調で、親機の近くでは大丈夫なとき',s:[
+  [`${C().ext}をコンセントから抜く`,0],['10秒待つ',10],[`${C().ext}をコンセントに挿す`,0],['親機接続ランプが緑点灯になるまで待つ（目安2分）',120],['もう一度「診断」で確認する',0]]},
+ L2:{t:'レベル2：Buffalo機器（親機と中継機）',w:'家じゅうでWi-Fiが不安定なとき、DNSの異常のとき、INTERNETランプが消えているとき。NTT機器のランプは正常なとき',s:[
+  [`${C().ext}をコンセントから抜く`,0],[`${C().rt}のACアダプターを抜く`,0],['30秒待つ',30],[`${C().rt}のACアダプターを挿す`,0],['POWERランプが緑点灯になるまで待つ（目安2〜3分）',180],[`${C().ext}をコンセントに挿す`,0],['親機接続ランプが緑点灯になるまで待つ（目安2分）',120],['もう一度「診断」で確認する',0]]},
+ L3:{t:'レベル3：全部を順番に',w:'レベル2で直らないとき、NTT機器のランプがおかしいとき',s:[
+  [`切る順：${C().ext} → ${C().rt} → ${C().hgw}`,0],['すべて切ったまま1分待つ',60],[`${C().hgw}の電源を入れる`,0],['下段の認証・光回線が緑、上段のルータ電源・ACTが緑、アラームが消灯になるまで待つ（目安3〜5分）',300],[`${C().rt}の電源を入れ、POWERが緑点灯になるまで待つ（目安2〜3分）`,180],[`${C().ext}を挿し、親機接続ランプが緑点灯になるまで待つ（目安2分）`,120],['もう一度「診断」で確認する',0]],
+  note:'ホームゲートウェイを切っている間は、ひかり電話も使えません。全部やり直しても直らず、NTT機器のランプが正常に戻らないときは、NTTの故障受付（固定電話から113、NTT東日本はWeb113でも受付）か、プロバイダに連絡します。'}
+});
+function stepsHtml(k){const r=restarts()[k];return`<div class="card" id="r_${k}"><h3 style="margin-top:0">${r.t}</h3><p class="mut">${r.w}</p><ol class="steps">${r.s.map((s,i)=>`<li data-k="${k}" data-i="${i}"><span class="stx">${esc(s[0])}</span>${s[1]?`<br><span class="timer"><button type="button" data-sec="${s[1]}">タイマー開始</button><b>${fmt(s[1])}</b></span>`:''}</li>`).join('')}</ol>${r.note?`<p class="mut">${r.note}</p>`:''}<button type="button" data-reset="${k}">チェックを戻す</button></div>`}
+const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+function renderRestart(){$('restartList').innerHTML=['L1','L2','L3'].map(stepsHtml).join('')}
+document.addEventListener('click',e=>{
+  const tb=e.target.closest('[data-sec]');
+  if(tb){e.stopPropagation();const b=tb.nextElementSibling;let s=+tb.dataset.sec;clearInterval(tb._t);tb.textContent='やり直す';b.textContent=fmt(s);
+    tb._t=setInterval(()=>{s--;b.textContent=fmt(Math.max(s,0));if(s<=0){clearInterval(tb._t);b.textContent='完了';tb.textContent='もう一度';try{navigator.vibrate&&navigator.vibrate(300)}catch(_){}}},1000);return}
+  const li=e.target.closest('ol.steps li');if(li){li.querySelector('.stx').classList.toggle('step-done');return}
+  const rs=e.target.closest('[data-reset]');if(rs){for(const x of rs.closest('.card').querySelectorAll('.stx'))x.classList.remove('step-done')}
+});
+
+/* ---------- 根本対策 ---------- */
+function renderFix(){
+  const app=C().os==='ios'?'App Store':'Google Play';
+  const F=[
+  ['5GHzのチャンネルを固定する（1分ほど切れる不調の対策）',`<p>5GHzのWi-Fiは、W53・W56というチャンネルを使っているときに気象レーダーなどの電波を検知すると、チャンネルを変えるため通信が止まります（DFS）。「たまに1分くらい切れる」の原因になりやすい仕組みです。</p><ol class="steps"><li>${esc(C().rt)}の設定画面を開く。スマホなら${app}の「AirStationアプリ」が簡単です。</li><li>無線設定（5GHz）の「無線チャンネル」を、自動から 36・40・44・48 のどれか（W52）に変える。</li><li>中継機を使っている場合、Buffaloも親機の5GHzを36chなど低い値にする方法を案内しています。変更後、中継機の親機接続ランプが緑点灯に戻るか確認します。</li></ol><p class="mut">メニュー名はファームウェアのバージョンで少し違います。</p>`],
+  ['ルーターの役割分担を確認する',`<p>この家では${esc(C().rt)}がルーター役です。前面のROUTERランプが<b>緑点灯</b>なら想定どおりです。</p><ol class="steps"><li>${esc(C().rt)}の設定画面（AirStationアプリから開けます）のステータスで、インターネットの接続方式（v6プラスなどのIPv6方式、またはPPPoE）を確認し、メモしておく。</li><li>${esc(C().hgw)}のPPPランプも点灯している場合は、両方の機器でルーターの処理をしている「二重ルーター」の可能性があります。不安定の原因になることがあるので、プロバイダに推奨の構成を確認すると安心です。</li></ol><p class="mut">背面スイッチ（AUTO/MANUAL、ROUTER/AP/WB）は、確認のつもりで動かさないでください。動かすとインターネットにつながらなくなることがあります。</p>`],
+  ['中継機の置き場所を見直す',`<ol class="steps"><li>${esc(C().rt)}と、電波が弱い場所の<b>中間あたり</b>のコンセントに挿す。</li><li>電源を入れて約2分後、親機接続ランプが<b>緑点灯</b>（点滅ではない）になる場所が目安です。緑点滅なら親機に少し近づけます。</li><li>金属の棚、水槽、冷蔵庫、コンクリート壁の陰、床に近い位置は電波が通りにくいので避けます。</li></ol>`],
+  ['ファームウェアを最新にする',`<ol class="steps"><li>${esc(C().hgw)}：Wi-FiかLANケーブルでつないだ端末のブラウザで <b>http://ntt.setup/</b> を開き、ユーザー名「user」と機器設定用パスワードでログインします。画面左下に「新しいファームウェアがあります」と出ていれば更新します（更新後は自動で再起動します）。</li><li>${esc(C().rt)}・${esc(C().ext)}：AirStationアプリか設定画面から更新します。更新中はPOWERランプが緑と橙の交互になるので、終わるまで電源を切らないでください。</li></ol>`],
+  ['不調の日時を記録して傾向を見る',`<p>不調のたびに「診断」を押すと、日時と結果が「記録・設定」に残ります。毎回同じ時刻なら機器の自動更新などの定期処理、夜だけなら回線の混雑、中継機の近くだけなら中継機の位置、と原因をしぼれます。問い合わせるときも、記録を見せると話が早く進みます。</p>`]
+  ];
+  $('fixList').innerHTML=F.map((f,i)=>`<details${i===0?' open':''}><summary>${f[0]}</summary>${f[1]}</details>`).join('');
+}
+
+/* ---------- 診断 ---------- */
+const T={i:'https://1.1.1.1/cdn-cgi/trace',g:'https://www.gstatic.com/generate_204',c:'https://www.cloudflare.com/cdn-cgi/trace'};
+async function probe(u,ms){const ac=new AbortController(),to=setTimeout(()=>ac.abort(),ms),t0=performance.now();
+  try{await fetch(u+'?_='+Date.now()+Math.random(),{mode:'no-cors',cache:'no-store',signal:ac.signal});return Math.round(performance.now()-t0)}catch(e){return null}finally{clearTimeout(to)}}
+const med=a=>{const b=[...a].sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:null};
+const conn=()=>{const c=navigator.connection;return c&&c.type?c.type:null};
+const RES={
+ ok:['正常です','ok','今は問題なくつながっています。'],
+ slow:['つながるが遅い','warn','通信はできていますが、応答に時間がかかっています。'],
+ unstable:['途切れがあります','warn','ときどき通信が失敗しています。'],
+ dns:['DNS（名前解決）の異常','bad','IPアドレスでは届くのに、サイト名では届きません。'],
+ down:['インターネットにつながりません','bad','どこにも届いていません。']};
+let running=false;
+async function runDiag(){
+  if(running)return;running=true;$('btnGo').disabled=true;$('flow').innerHTML='';
+  $('lamp').className='lamp busy';$('res').textContent='診断中…';$('resSub').textContent='この画面のまま20秒ほどお待ちください';
+  const N=8,R=[];
+  for(let k=0;k<N;k++){
+    const [i,g,c]=await Promise.all([probe(T.i,4000),probe(T.g,4000),probe(T.c,4000)]);R.push({i,g,c});
+    $('bar').style.width=((k+1)/N*100)+'%';if(k<N-1)await new Promise(r=>setTimeout(r,1500));
+  }
+  const all=R.flatMap(r=>[r.i,r.g,r.c]),okv=all.filter(v=>v!=null);
+  const rate=okv.length/all.length,ipOk=R.filter(r=>r.i!=null).length,nameOk=R.filter(r=>r.g!=null||r.c!=null).length;
+  const m=med(okv),mx=okv.length?Math.max(...okv):null;
+  let code;
+  if(!navigator.onLine||okv.length===0)code='down';
+  else if(ipOk>=N/2&&nameOk===0)code='dns';
+  else if(rate<0.9)code='unstable';
+  else if(m>400)code='slow';
+  else code='ok';
+  const [txt,cls,sub]=RES[code];
+  $('lamp').className='lamp '+cls;$('res').textContent=txt;
+  const ct=conn();$('resSub').textContent=sub+(ct==='cellular'?'（注意：携帯回線で測っています）':ct==='wifi'?'（Wi-Fiで測定）':'');
+  $('nOk').textContent=Math.round(rate*100)+'%';$('nMs').textContent=m!=null?m+' ms':'–';$('nMax').textContent=mx!=null?mx+' ms':'–';
+  st.hist.unshift({t:Date.now(),code,rate:Math.round(rate*100),m,memo:''});if(st.hist.length>300)st.hist.pop();save();renderHist();
+  startFlow(code);running=false;$('btnGo').disabled=false;
+}
+$('btnGo').addEventListener('click',runDiag);
+
+/* ---------- 症状別の案内 ---------- */
+const go=k=>`<a href="#restart" data-jump="${k}">再起動の手順（${restarts()[k].t.split('：')[0]}）を開く</a>`;
+const tree=()=>({
+ ok:{leaf:'今は正常です',body:()=>`<p>さっきまで不調だったなら、一時的な途切れだった可能性があります。続くようなら「根本対策」の<b>5GHzのチャンネル固定</b>を試してください。</p><p>不調の時刻を残すため、下のメモ欄に状況を書いておくと後で役立ちます。</p>`},
+ slow:{q:'中継機の近くで測りましたか？',o:[['はい、中継機の近く','slowExt'],['いいえ／親機の近くでも遅い','slowAll']]},
+ slowExt:{leaf:'中継機まわりの電波を確認',body:()=>`<p>${esc(C().ext)}の親機接続ランプを見てください。<b>緑点滅</b>なら親機との電波が弱いので、親機に近いコンセントへ移すと改善します。</p><p>親機の近くで診断して速ければ、中継機の位置が原因です。</p>${go('L1')}`},
+ slowAll:{leaf:'回線の混雑か、親機の不調',body:()=>`<p>夜（20〜24時ごろ）だけ遅いなら、回線の混雑が原因のことが多いです。時間をおいて再度診断してください。</p><p>時間帯に関係なく遅いなら、Wi-Fi機器を再起動します。</p>${go('L2')}`},
+ dns:{leaf:'DNSの異常',body:()=>`<p>サイト名をIPアドレスに変換する仕組み（DNS）がうまく動いていません。DNSの問い合わせはルーター役の${esc(C().rt)}が中継しているので、まずWi-Fi機器を再起動します。直らなければ全部を順番に再起動します。</p>${go('L2')}<br>${go('L3')}<p class="mut">直らなければ、プロバイダの障害情報を確認してください。</p>`},
+ unstable:{q:'スマホのWi-Fiマークは出ていますか？',o:[['出ている','wifiOn'],['消えたり出たりする／出ていない','wifiOff']]},
+ down:{q:'スマホのWi-Fiマークは出ていますか？',o:[['出ている','wifiOn'],['出ていない','wifiOff']]},
+ wifiOff:{q:`${C().rt}（親機）の近くでもWi-Fiが不安定ですか？`,o:[['親機の近くでもダメ','offAll'],['中継機の近くだけダメ','offExt']]},
+ offExt:{leaf:'中継機の問題',body:()=>`<p>${esc(C().ext)}のランプを確認します。親機接続が<b>橙</b>や<b>緑と橙の交互</b>なら、親機とつながっていません。まず中継機だけ再起動します。</p>${go('L1')}<p class="mut">再起動しても戻らない、または何度も起きる場合は「根本対策」の「中継機の置き場所」と「5GHzのチャンネル固定」へ。</p>`},
+ offAll:{leaf:'親機（Wi-Fiルーター）の問題',body:()=>`<p>${esc(C().rt)}のPOWERとWIRELESSランプを見てください。POWERが<b>緑と橙の交互</b>ならファームウェア更新中なので、電源を切らずに終わるまで待ちます。それ以外ならWi-Fi機器を再起動します。</p>${go('L2')}`},
+ wifiOn:{q:`${C().hgw}のランプは正常ですか？（下段の認証・光回線が緑、上段のアラームが消灯）`,o:[['正常','ntOk'],['おかしい／わからない','ntBad']]},
+ ntBad:{leaf:'NTT回線側の問題',body:()=>`<p>「ランプ」タブで、どのランプが違うか確認してください。光回線や認証のランプが消灯・橙なら回線側です。</p><p>スマホのモバイル回線で、NTTとプロバイダの障害・工事情報も確認します。広い範囲の障害なら、復旧を待つしかありません。</p>${go('L3')}<p class="mut">全部を再起動しても戻らなければ、NTTの故障受付（固定電話から113）へ。${C().isp?'プロバイダ：'+esc(C().isp):''}</p>`},
+ ntOk:{q:`${C().rt}（親機）の近くで診断しても同じですか？`,o:[['同じくダメ','ntOkAll'],['親機の近くなら大丈夫','offExt']]},
+ ntOkAll:{leaf:'ルーター部分の問題',body:()=>`<p>NTT機器は正常で、Wi-Fiにもつながっているのに外に出られない状態です。ルーター役の${esc(C().rt)}でインターネット接続が切れていることが多いので、前面のINTERNETランプを確認し、まずWi-Fi機器を再起動します。直らなければ全部を順番に再起動します。</p>${go('L2')}<br>${go('L3')}<p class="mut">頻発するなら「根本対策」の「ルーターの役割分担を確認する」を見てください。</p>`}
+});
+function startFlow(k){$('flow').innerHTML='';showNode(k)}
+function showNode(k){
+  const n=tree()[k];const box=document.createElement('div');box.className='card'+(n.leaf?' leaf':'');
+  if(n.leaf){box.innerHTML=`<h3>${n.leaf}</h3>${n.body()}<label class="f">メモ（記録に残ります）<input id="memo" placeholder="例：2階の寝室、動画が止まった"></label>`;
+    $('flow').appendChild(box);const mi=box.querySelector('#memo');mi.addEventListener('change',()=>{if(st.hist[0]){st.hist[0].memo=mi.value;save();renderHist()}});}
+  else{box.innerHTML=`<div class="q">${esc(n.q)}</div><div class="opts">${n.o.map(o=>`<button type="button" data-next="${o[1]}">${esc(o[0])}</button>`).join('')}</div>`;
+    $('flow').appendChild(box);
+    box.addEventListener('click',e=>{const b=e.target.closest('[data-next]');if(!b)return;
+      for(const x of box.querySelectorAll('button')){x.disabled=x!==b;if(x===b)x.style.borderColor='var(--navy)'}
+      while(box.nextSibling)box.nextSibling.remove();showNode(b.dataset.next);box.nextSibling&&box.nextSibling.scrollIntoView({behavior:'smooth',block:'start'})});}
+}
+document.addEventListener('click',e=>{const a=e.target.closest('[data-jump]');if(!a)return;setTimeout(()=>{const el=$('r_'+a.dataset.jump);el&&el.scrollIntoView({block:'start'})},50)});
+
+/* ---------- 記録 ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const dt=t=>{const d=new Date(t);return`${d.getMonth()+1}/${d.getDate()}（${'日月火水木金土'[d.getDay()]}）${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const COL={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)'};
+function renderHist(){$('histEmpty').style.display=st.hist.length?'none':'';
+  $('hist').innerHTML=st.hist.map(h=>`<tr><td>${dt(h.t)}</td><td><span class="tag" style="background:${COL[RES[h.code][1]]}">${RES[h.code][0]}</span><br><span class="mut">成功${h.rate}%${h.m!=null?'・'+h.m+'ms':''}</span></td><td>${esc(h.memo)}</td></tr>`).join('')}
+function flash(t){$('msg').textContent=t;setTimeout(()=>{if($('msg').textContent===t)$('msg').textContent=''},4000)}
+$('btnCopy').addEventListener('click',async()=>{const txt=st.hist.map(h=>[dt(h.t),RES[h.code][0],'成功'+h.rate+'%',h.m!=null?h.m+'ms':'',h.memo].join('\t')).join('\n');
+  try{await navigator.clipboard.writeText(txt);flash('コピーしました。メモアプリなどに貼り付けできます。')}catch(e){flash('コピーできませんでした。')}});
+let armed=0;$('btnClr').addEventListener('click',()=>{if(Date.now()-armed>4000){armed=Date.now();flash('もう一度押すと記録をすべて消去します。');return}st.hist=[];save();renderHist();flash('消去しました。')});
+
+/* ---------- 設定 ---------- */
+for(const k of Object.keys(DEF)){const el=$('s_'+k);el.value=st.cfg[k];el.addEventListener('change',()=>{st.cfg[k]=el.value.trim()||DEF[k];el.value=st.cfg[k];save();renderAll()})}
+function renderAll(){renderLamps();renderRestart();renderFix()}
+
+const ct=conn();if(ct==='wifi')$('cellWarn').style.display='none';
+renderAll();renderHist();route();
+}
+</script>
+</body>
+</html>
